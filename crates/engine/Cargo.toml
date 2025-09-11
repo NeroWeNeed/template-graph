@@ -1,0 +1,21 @@
+[package]
+name = "engine"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+toml = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt", "macros"] }
+handlebars = { workspace = true }
+tokio-util = { workspace = true }
+notify = { workspace = true }
+log = { workspace = true }
+serde_json = { workspace = true }
+futures = { workspace = true }
+http = { workspace = true }
+hyper = { workspace = true, features = ["full"] }
+hyper-util = { workspace = true, features = ["full"] }
+http-body-util = { workspace = true }
+jsonschema = "0.33.0"
