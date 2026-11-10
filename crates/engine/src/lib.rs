@@ -1,22 +1,20 @@
-pub mod config;
-
 pub mod model;
 pub mod render;
 pub mod source;
 pub mod template;
-pub mod value;
 
-use std::{borrow::Cow, cell::RefCell};
+use std::{borrow::Cow, cell::RefCell, convert::Infallible};
 
 use futures::TryFutureExt;
 use log::error;
 
 use crate::{
-    config::Config,
-    model::{Model, ModelExtra, builder::ModelBuilder, node::ModelNode},
+    model::{
+        Model, ModelExtra, allocator::EdgeAllocator, allocator::NodeAllocator,
+        builder::ModelBuilder, node::ModelNode,
+    },
     source::{Operation, Source, SourceProvider, env::EnvNodeIdProvider},
     template::Renderer,
-    value::Value,
 };
 
 impl<'a> ModelBuilder<'a, ()> {
@@ -37,17 +35,14 @@ impl<'a> ModelBuilder<'a, ()> {
             }
             let mut sources = Vec::new();
             for (name, generator) in generator {
-                let node_id = model.allocate_node(
-                    ModelNode {
-                        name: Some(name.clone().into()),
-                        value: value::Value::Null,
-                        output: generator.output,
-                        inherit: true,
-                    },
-                    false,
-                )?;
+                let node_id = model.allocate_node(ModelNode {
+                    name: Some(name.clone().into()),
+                    value: value::Value::Null,
+                    output: generator.output,
+                    inherit: true,
+                })?;
                 for dependency in &global_dependencies {
-                    model.allocate_edge(*dependency, node_id);
+                    model.allocate_edge(*dependency, node_id)?;
                 }
                 for source in generator.source {
                     sources.push((node_id, name.clone(), source));
@@ -57,15 +52,12 @@ impl<'a> ModelBuilder<'a, ()> {
             for (id, name, source) in sources {
                 let depends_on_id = match source {
                     config::Source::Path { source } => {
-                        let target_id = model.allocate_node(
-                            ModelNode {
-                                name: Some(name.clone().into()),
-                                value: Value::Null,
-                                output: None,
-                                inherit: false,
-                            },
-                            false,
-                        )?;
+                        let target_id = model.allocate_node(ModelNode {
+                            name: Some(name.clone().into()),
+                            value: Value::Null,
+                            output: None,
+                            inherit: false,
+                        })?;
                         tasks.push(
                             source
                                 .new(name.clone(), model.header_mut(), target_id)?
@@ -84,7 +76,7 @@ impl<'a> ModelBuilder<'a, ()> {
                         reference_id
                     }
                 };
-                model.allocate_edge(depends_on_id, id);
+                model.allocate_edge(depends_on_id, id)?;
             }
         }
 
@@ -169,4 +161,6 @@ pub enum Error {
     Source(Box<dyn std::error::Error>),
     #[error(transparent)]
     Handlebars(#[from] handlebars::RenderError),
+    #[error(transparent)]
+    Infallible(#[from] Infallible),
 }

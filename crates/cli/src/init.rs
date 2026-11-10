@@ -1,28 +1,4 @@
-use crate::{
-    model::node::{ModelNode, ModelNodeId},
-    source::{
-        Operation,
-        env::EnvNodeIdStorage,
-        fs::watcher::{BroadcastFileWatcher, FileWatcher},
-    },
-};
-
-/// Represents an edge in the [Model]. Edges follow the pattern of from -> to, where from
-/// represents something that to has a dependency on.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ModelNodeEdge {
-    pub from: ModelNodeId,
-    pub to: ModelNodeId,
-}
-
-#[derive(Debug)]
-pub struct Model<'a, H> {
-    pub(crate) nodes: Vec<ModelNode<'a>>,
-    pub(crate) edges: Vec<ModelNodeEdge>,
-    pub(crate) event_receiver: tokio::sync::mpsc::Receiver<(ModelNodeId, Operation)>,
-    pub(crate) event_sender: tokio::sync::mpsc::Sender<(ModelNodeId, Operation)>,
-    pub(crate) header: H,
-}
+pub fn init_model() {}
 
 pub struct ModelExtra {
     file_watcher: BroadcastFileWatcher,
@@ -46,6 +22,7 @@ impl FileWatcher for ModelExtra {
         &self.file_watcher
     }
 }
+
 impl EnvNodeIdStorage for ModelExtra {
     fn set_env_node_id(&mut self, value: ModelNodeId) {
         self.env_node_id = Some(value);

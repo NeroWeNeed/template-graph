@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::{
     model::{
+        allocator::NodeAllocator,
         builder::ModelBuilder,
         node::{ModelNode, ModelNodeId},
     },
@@ -18,15 +19,12 @@ impl<'a, H> ModelBuilder<'a, H> {
         for (name, variable) in variables {
             var_values.push((name, variable.try_into()?));
         }
-        let node_id = self.allocate_node(
-            ModelNode {
-                name: Some(VAR_NODE_NAME.into()),
-                value: Value::Object(vec![(VAR_NODE_NAME.into(), Value::Object(var_values))]),
-                output: None,
-                inherit: false,
-            },
-            true,
-        )?;
+        let node_id = self.allocate_node(ModelNode {
+            name: Some(VAR_NODE_NAME.into()),
+            value: Value::Object(vec![(VAR_NODE_NAME.into(), Value::Object(var_values))]),
+            output: None,
+            inherit: false,
+        })?;
         Ok(node_id)
     }
 }

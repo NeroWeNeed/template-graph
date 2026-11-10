@@ -1,25 +1,22 @@
 use std::path::{Path, PathBuf};
 
-use log::error;
-
-use crate::{
-    model::node::ModelNodeId,
-    source::{Operation, Source, format::Formatter, fs::watcher::PathEvent},
-    value::Value,
+use crate::{error::Error, watcher::PathEvent};
+use template_engine_commons::{
+    format::Formatter, operation::Operation, source::SourceHandler, value::Value,
 };
 
 use super::watcher::PathEventKind;
 #[derive(Debug)]
-pub struct PathSource<F> {
-    pub data: PathSourceData<F>,
+pub struct PathSource<F, Id> {
+    pub data: PathSourceData<F, Id>,
     pub kind: PathSourceKind,
 }
 #[derive(Debug)]
-pub struct PathSourceData<F> {
+pub struct PathSourceData<F, Id> {
     pub value: PathBuf,
     pub format: F,
     pub receiver: tokio::sync::broadcast::Receiver<PathEvent>,
-    pub id: ModelNodeId,
+    pub id: Id,
     pub name: String,
 }
 #[derive(Debug)]
@@ -31,9 +28,9 @@ fn handle<E>(
     path: &Path,
     formatter: &impl Formatter<Error = E>,
     kind: PathEventKind,
-) -> Result<Option<Value>, crate::Error>
+) -> Result<Option<Value>, Error>
 where
-    crate::Error: From<E>,
+    Error: From<E>,
 {
     match kind {
         PathEventKind::DataModified | PathEventKind::Created => {
@@ -43,13 +40,14 @@ where
         _ => Ok(None),
     }
 }
-impl<F> PathSourceData<F>
+impl<F, Id> PathSourceData<F, Id>
 where
-    F: Formatter<Error = crate::Error>,
+    F: Formatter,
+    Error: From<F::Error>,
 {
-    async fn listen_file<S>(self, sender: S) -> Result<(), crate::Error>
+    pub(crate) async fn listen_file<S>(self, sender: S) -> Result<(), Error>
     where
-        S: crate::source::SourceHandler,
+        S: SourceHandler<Id, Operation>,
     {
         let PathSourceData {
             value: target,
@@ -66,7 +64,7 @@ where
                         match handle(&value, &format, kind) {
                             Ok(value) => {
                                 if let Some(value) = value {
-                                    sender
+                                    if let Err(err) = sender
                                         .send(
                                             id,
                                             Operation::Set(Value::Object(vec![(
@@ -75,7 +73,9 @@ where
                                             )])),
                                         )
                                         .await
-                                        .map_err(|_| crate::Error::SendError)?;
+                                    {
+                                        break;
+                                    }
                                 }
                             }
                             Err(err) => {
@@ -96,9 +96,9 @@ where
         }
         Ok(())
     }
-    async fn listen_dir<S>(self, sender: S) -> Result<(), crate::Error>
+    pub(crate) async fn listen_dir<S>(self, sender: S) -> Result<(), Error>
     where
-        S: crate::source::SourceHandler,
+        S: SourceHandler<Id, Operation>,
     {
         let PathSourceData {
             value: parent,
@@ -120,10 +120,10 @@ where
                                             Value::Object(vec![(n.to_string_lossy().into(), acc)])
                                         }),
                                     )]);
-                                    sender
-                                        .send(id, Operation::Merge(value))
-                                        .await
-                                        .map_err(|_| crate::Error::SendError)?;
+                                    if let Err(err) = sender.send(id, Operation::Merge(value)).await
+                                    {
+                                        break;
+                                    }
                                 }
                             }
                             Err(err) => {
@@ -143,21 +143,5 @@ where
             }
         }
         Ok(())
-    }
-}
-impl<F> Source for PathSource<F>
-where
-    F: Formatter<Error = crate::Error>,
-{
-    type Error = crate::Error;
-
-    async fn listen<S>(self, sender: S) -> Result<(), Self::Error>
-    where
-        S: crate::source::SourceHandler,
-    {
-        match self.kind {
-            PathSourceKind::Dir => self.data.listen_dir(sender).await,
-            PathSourceKind::File => self.data.listen_file(sender).await,
-        }
     }
 }

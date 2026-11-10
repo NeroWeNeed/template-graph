@@ -1,0 +1,13 @@
+[package]
+name = "module_fs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+notify = { workspace = true }
+tokio = { workspace = true, features = ["rt"] }
+serde = { workspace = true }
+template-engine-commons = { workspace = true  }
+template-engine-config = { workspace = true  }
+thiserror = { workspace = true }
+futures = { workspace = true }

@@ -1,10 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use log::error;
 use notify::{Config, Error, Event, RecommendedWatcher, RecursiveMode, Watcher};
+use template_engine_commons::value::Value;
 use tokio::sync::mpsc::{Sender, error::SendError};
-
-use crate::value::Value;
 
 pub struct BroadcastFileWatcher {
     watcher: RecommendedWatcher,
@@ -25,12 +23,6 @@ impl FileWatcher for BroadcastFileWatcher {
 }
 impl BroadcastFileWatcher {
     pub fn new(config: Config, buffer_size: usize) -> Result<Self, notify::Error> {
-        #[inline]
-        fn send_event(sender: &tokio::sync::broadcast::Sender<PathEvent>, evt: PathEvent) {
-            if let Err(err) = sender.send(evt) {
-                error!("{err}");
-            }
-        }
         let (tx, _) = tokio::sync::broadcast::channel(buffer_size);
         let watcher_tx = tx.clone();
         let watcher = RecommendedWatcher::new(
@@ -41,13 +33,12 @@ impl BroadcastFileWatcher {
                             notify::EventKind::Create(kind) => match kind {
                                 notify::event::CreateKind::File => {
                                     for path in evt.paths {
-                                        send_event(
-                                            &watcher_tx,
-                                            PathEvent {
-                                                value: path,
-                                                kind: PathEventKind::Created,
-                                            },
-                                        );
+                                        if let Err(err) = watcher_tx.send(PathEvent {
+                                            value: path,
+                                            kind: PathEventKind::Created,
+                                        }) {
+                                            break;
+                                        }
                                     }
                                 }
                                 _ => {}
@@ -55,47 +46,43 @@ impl BroadcastFileWatcher {
                             notify::EventKind::Modify(kind) => match kind {
                                 notify::event::ModifyKind::Data(_) => {
                                     for path in evt.paths {
-                                        send_event(
-                                            &watcher_tx,
-                                            PathEvent {
-                                                value: path,
-                                                kind: PathEventKind::DataModified,
-                                            },
-                                        );
+                                        if let Err(err) = watcher_tx.send(PathEvent {
+                                            value: path,
+                                            kind: PathEventKind::DataModified,
+                                        }) {
+                                            break;
+                                        }
                                     }
                                 }
                                 notify::event::ModifyKind::Metadata(_) => {
                                     for path in evt.paths {
-                                        send_event(
-                                            &watcher_tx,
-                                            PathEvent {
-                                                value: path,
-                                                kind: PathEventKind::MetadataModified,
-                                            },
-                                        );
+                                        if let Err(err) = watcher_tx.send(PathEvent {
+                                            value: path,
+                                            kind: PathEventKind::MetadataModified,
+                                        }) {
+                                            break;
+                                        }
                                     }
                                 }
                                 notify::event::ModifyKind::Name(mode) => match mode {
                                     notify::event::RenameMode::From => {
                                         for path in evt.paths {
-                                            send_event(
-                                                &watcher_tx,
-                                                PathEvent {
-                                                    value: path,
-                                                    kind: PathEventKind::Removed,
-                                                },
-                                            );
+                                            if let Err(err) = watcher_tx.send(PathEvent {
+                                                value: path,
+                                                kind: PathEventKind::Removed,
+                                            }) {
+                                                break;
+                                            }
                                         }
                                     }
                                     notify::event::RenameMode::To => {
                                         for path in evt.paths {
-                                            send_event(
-                                                &watcher_tx,
-                                                PathEvent {
-                                                    value: path,
-                                                    kind: PathEventKind::Created,
-                                                },
-                                            );
+                                            if let Err(err) = watcher_tx.send(PathEvent {
+                                                value: path,
+                                                kind: PathEventKind::Created,
+                                            }) {
+                                                break;
+                                            }
                                         }
                                     }
                                     _ => {}
@@ -105,13 +92,12 @@ impl BroadcastFileWatcher {
                             notify::EventKind::Remove(kind) => match kind {
                                 notify::event::RemoveKind::File => {
                                     for path in evt.paths {
-                                        send_event(
-                                            &watcher_tx,
-                                            PathEvent {
-                                                value: path,
-                                                kind: PathEventKind::Removed,
-                                            },
-                                        );
+                                        if let Err(err) = watcher_tx.send(PathEvent {
+                                            value: path,
+                                            kind: PathEventKind::Removed,
+                                        }) {
+                                            break;
+                                        }
                                     }
                                 }
                                 _ => {}
@@ -136,7 +122,7 @@ impl BroadcastFileWatcher {
         &mut self,
         path: &Path,
         mode: RecursiveMode,
-    ) -> Result<tokio::sync::broadcast::Receiver<PathEvent>, crate::Error> {
+    ) -> Result<tokio::sync::broadcast::Receiver<PathEvent>, notify::Error> {
         self.watcher.watch(path, mode)?;
         Ok(self.sender.subscribe())
     }

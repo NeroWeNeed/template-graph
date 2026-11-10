@@ -20,3 +20,6 @@ jsonschema = "0.33.0"
 hyper = "1.7.0"
 hyper-util = "0.1.16"
 http-body-util = "0.1.3"
+template-engine-commons = { path = "./crates/commons" }
+template-engine-config = { path = "./crates/config" }
+

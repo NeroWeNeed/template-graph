@@ -1,5 +1,5 @@
 [package]
-name = "engine"
+name = "template-engine-engine"
 version = "0.1.0"
 edition = "2024"
 
@@ -18,4 +18,6 @@ http = { workspace = true }
 hyper = { workspace = true, features = ["full"] }
 hyper-util = { workspace = true, features = ["full"] }
 http-body-util = { workspace = true }
-jsonschema = "0.33.0"
+jsonschema = { workspace = true }
+template-engine-commons = { workspace = true  }
+template-engine-config = { workspace = true  }

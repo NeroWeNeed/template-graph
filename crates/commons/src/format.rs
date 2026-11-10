@@ -14,7 +14,7 @@ pub enum Format {
     Toml,
 }
 impl Formatter for Format {
-    type Error = crate::Error;
+    type Error = FormatError;
 
     fn format(&self, value: impl AsRef<str>) -> Result<Value, Self::Error> {
         match self {
@@ -23,4 +23,11 @@ impl Formatter for Format {
             Format::Toml => Ok(toml::from_str(value.as_ref())?),
         }
     }
+}
+#[derive(Debug, thiserror::Error)]
+pub enum FormatError {
+    #[error(transparent)]
+    Serde(#[from] serde_json::error::Error),
+    #[error(transparent)]
+    Toml(#[from] toml::de::Error),
 }

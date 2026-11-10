@@ -31,10 +31,3 @@ impl SourceHandler for tokio::sync::mpsc::Sender<(ModelNodeId, Operation)> {
         self.send((id, event)).await
     }
 }
-#[derive(Debug, Clone)]
-pub enum Operation {
-    Set(Value),
-    Merge(Value),
-    Remove(String),
-    Reload,
-}

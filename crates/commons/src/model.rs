@@ -1,6 +1,23 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, path::PathBuf};
 
-use crate::{render::Render, source::Operation, value::Value};
+use serde::{Deserialize, Serialize};
+
+use crate::{operation::Operation, value::Value};
+
+/// Represents an edge in the [Model]. Edges follow the pattern of from -> to, where from
+/// represents something that to has a dependency on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ModelNodeEdge {
+    pub from: ModelNodeId,
+    pub to: ModelNodeId,
+}
+
+#[derive(Debug)]
+pub struct Model<'a, H> {
+    pub(crate) nodes: Vec<ModelNode<'a>>,
+    pub(crate) edges: Vec<ModelNodeEdge>,
+    pub(crate) header: H,
+}
 
 pub type ModelNodeId = usize;
 #[derive(Debug)]
@@ -9,6 +26,21 @@ pub struct ModelNode<'a> {
     pub value: Value,
     pub output: Option<Render>,
     pub inherit: bool,
+}
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Render {
+    pub template: Template,
+    pub output: Output,
+}
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum Template {
+    Value(String),
+    File(PathBuf),
+}
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum Output {
+    Stdout,
+    File(PathBuf),
 }
 impl<'a> Default for ModelNode<'a> {
     fn default() -> Self {
